@@ -1,0 +1,13 @@
+895b260db25b3aed744415c33eea80ff *DESCRIPTION
+3b044d4694d6fc79c80261e87aacaeff *LICENSE
+740cfc93a761151c059234c2dcede7cb *NAMESPACE
+66a0ea409392245a5abea194a5f14269 *NEWS.md
+3b9ef76c6e04236529e83892a007489b *R/deduped.R
+5251556e180ab40194426e052129a6a8 *R/deduped_map.R
+d0cdff83abea5112517e721f165acabc *README.md
+a23f56cec68f01553baff070e8bfa4f4 *inst/WORDLIST
+34b53a4babff210ac654ebc9b986b2e4 *man/deduped.Rd
+be728636a552fa809d17ba382432a7c2 *man/deduped_map.Rd
+1ac7611399102b20ae5cf244cfdfcd4f *tests/testthat.R
+1aca527ba7ba753138389a64080e4024 *tests/testthat/test-deduped.R
+4aea0353bc7fbd52d3bf054aa6315d23 *tests/testthat/test-deduped_map.R
