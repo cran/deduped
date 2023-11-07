@@ -4,11 +4,13 @@
 # deduped
 
 <!-- badges: start -->
+
+[![](https://cranlogs.r-pkg.org/badges/deduped)](https://cran.r-project.org/package=deduped)
 <!-- badges: end -->
 
-The goal of `deduped` is to provide utility functions that make it
-easier to speed up vectorized functions (`deduped()`) or map functions
-(`deduped_map()`) when the arguments contain significant duplication.
+`deduped` contains one main function `deduped()` which speeds up slow,
+vectorized functions by only performing computations on the unique
+values of the input and expanding the results at the end.
 
 One particular use case of `deduped()` that I come across a lot is when
 using `basename()` and `dirname()` on the `file_path` column after
@@ -19,21 +21,32 @@ duplicated.
 
 ## Installation
 
-You can install the development version of `deduped` like so:
+You can install the released version of `deduped` from
+[CRAN](https://cran.r-project.org/package=deduped) with:
+
+``` r
+install.packages("deduped")
+```
+
+And the development version from
+[GitHub](https://github.com/orgadish/deduped):
 
 ``` r
 if(!requireNamespace("remotes")) install.packages("remotes")
 
-remotes::install_github("orgadish/dedup")
+remotes::install_github("orgadish/deduped")
 ```
 
 ## Examples
 
+### Basic Example
+
 ``` r
 library(deduped)
+set.seed(0)
 
-slow_func <- function(x) {
-  for (i in x) {
+slow_func <- function(ii) {
+  for (i in ii) {
     Sys.sleep(0.001)
   }
 }
@@ -41,64 +54,57 @@ slow_func <- function(x) {
 # deduped()
 unique_vec <- sample(LETTERS, 10)
 unique_vec
-#>  [1] "O" "A" "E" "C" "K" "F" "D" "S" "V" "G"
+#>  [1] "N" "Y" "D" "G" "A" "B" "K" "Z" "R" "V"
 
 duplicated_vec <- sample(rep(unique_vec, 100))
 length(duplicated_vec)
 #> [1] 1000
 
 system.time({
-  y1 <- slow_func(duplicated_vec)
+  x1 <- deduped(slow_func)(duplicated_vec)
 })
 #>    user  system elapsed 
-#>   0.026   0.019   1.268
+#>   0.097   0.015   0.134
 system.time({
-  y2 <- deduped(slow_func)(duplicated_vec)
+  x2 <- slow_func(duplicated_vec)
 })
 #>    user  system elapsed 
-#>   0.115   0.012   0.141
-all(y1 == y2)
+#>   0.032   0.013   1.197
+all.equal(x1, x2)
 #> [1] TRUE
 
 
-# deduped_map()
-unique_list <- purrr::map(1:5, function(j) sample(LETTERS, j, replace = TRUE))
-unique_list
-#> [[1]]
-#> [1] "I"
-#> 
-#> [[2]]
-#> [1] "A" "W"
-#> 
-#> [[3]]
-#> [1] "F" "C" "I"
-#> 
-#> [[4]]
-#> [1] "I" "X" "Y" "P"
-#> 
-#> [[5]]
-#> [1] "T" "H" "L" "R" "B"
+# deduped() can be combined with lapply() or purrr::map().
+unique_list <- lapply(1:5, function(j) sample(LETTERS, j, replace = TRUE))
+str(unique_list)
+#> List of 5
+#>  $ : chr "M"
+#>  $ : chr [1:2] "P" "Y"
+#>  $ : chr [1:3] "D" "E" "L"
+#>  $ : chr [1:4] "B" "I" "J" "N"
+#>  $ : chr [1:5] "W" "T" "F" "E" ...
 
-duplicated_list <- sample(rep(unique_list, 100)) # Create a duplicated list
+# Create a list with significant duplication.
+duplicated_list <- sample(rep(unique_list, 100)) 
 length(duplicated_list)
 #> [1] 500
 
 system.time({
-  z1 <- purrr::map(duplicated_list, slow_func)
+  y1 <- deduped(lapply)(duplicated_list, slow_func)
 })
 #>    user  system elapsed 
-#>   0.040   0.025   1.916
+#>   0.001   0.000   0.018
 system.time({
-  z2 <- deduped_map(duplicated_list, slow_func)
+  y2 <- lapply(duplicated_list, slow_func)
 })
 #>    user  system elapsed 
-#>   0.020   0.008   0.048
+#>   0.025   0.016   1.756
 
-all.equal(z1, z2)
+all.equal(y1, y2)
 #> [1] TRUE
 ```
 
-## `file_path` Example
+### `file_path` Example
 
 ``` r
 # Create multiple CSVs to read
@@ -117,45 +123,32 @@ invisible(sapply(
 
 duplicated_mtcars_from_files <- readr::read_csv(
   list.files(tf, full.names = TRUE),
-  id = "file_path"
+  id = "file_path",
+  show_col_types = FALSE
 )
-#> Rows: 320000 Columns: 12
-#> ── Column specification ────────────────────────────────────────────────────────
-#> Delimiter: ","
-#> dbl (11): mpg, cyl, disp, hp, drat, wt, qsec, vs, am, gear, carb
-#> 
-#> ℹ Use `spec()` to retrieve the full column specification for this data.
-#> ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-duplicated_mtcars_from_files
-#> # A tibble: 320,000 × 12
-#>    file_path     mpg   cyl  disp    hp  drat    wt  qsec    vs    am  gear  carb
-#>    <chr>       <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
-#>  1 /var/folde…  21.4     6  258    110  3.08  3.22  19.4     1     0     3     1
-#>  2 /var/folde…  18.7     8  360    175  3.15  3.44  17.0     0     0     3     2
-#>  3 /var/folde…  18.1     6  225    105  2.76  3.46  20.2     1     0     3     1
-#>  4 /var/folde…  14.3     8  360    245  3.21  3.57  15.8     0     0     3     4
-#>  5 /var/folde…  24.4     4  147.    62  3.69  3.19  20       1     0     4     2
-#>  6 /var/folde…  22.8     4  141.    95  3.92  3.15  22.9     1     0     4     2
-#>  7 /var/folde…  19.2     6  168.   123  3.92  3.44  18.3     1     0     4     4
-#>  8 /var/folde…  17.8     6  168.   123  3.92  3.44  18.9     1     0     4     4
-#>  9 /var/folde…  16.4     8  276.   180  3.07  4.07  17.4     0     0     3     3
-#> 10 /var/folde…  17.3     8  276.   180  3.07  3.73  17.6     0     0     3     3
-#> # ℹ 319,990 more rows
+dplyr::count(duplicated_mtcars_from_files, basename(file_path))
+#> # A tibble: 2 × 2
+#>   `basename(file_path)`      n
+#>   <chr>                  <int>
+#> 1 mtcars_0.csv          190000
+#> 2 mtcars_1.csv          130000
 
 system.time({
-  df1 <- dplyr::mutate(duplicated_mtcars_from_files,
+  df1 <- dplyr::mutate(
+    duplicated_mtcars_from_files,
     file_name = basename(file_path)
   )
 })
 #>    user  system elapsed 
-#>   0.080   0.001   0.081
+#>   0.104   0.000   0.104
 system.time({
-  df2 <- dplyr::mutate(duplicated_mtcars_from_files,
+  df2 <- dplyr::mutate(
+    duplicated_mtcars_from_files,
     file_name = deduped(basename)(file_path)
   )
 })
 #>    user  system elapsed 
-#>   0.006   0.000   0.007
+#>   0.010   0.002   0.013
 
 all.equal(df1, df2)
 #> [1] TRUE
