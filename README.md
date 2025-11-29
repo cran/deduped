@@ -10,14 +10,9 @@
 
 `deduped` contains one main function `deduped()` which speeds up slow,
 vectorized functions by only performing computations on the unique
-values of the input and expanding the results at the end.
-
-One particular use case of `deduped()` that I come across a lot is when
-using `basename()` and `dirname()` on the `file_path` column after
-reading multiple CSVs (e.g. with
-`readr::read_csv(..., id="file_path")`). `basename()` and `dirname()`
-are surprisingly slow (especially on Windows), and most of the column is
-duplicated.
+values of the input and expanding the results at the end. A convenience
+wrapper, `with_deduped()`, was added in version 0.3.0 to allow piping an
+existing expression.
 
 ## Installation
 
@@ -39,119 +34,70 @@ remotes::install_github("orgadish/deduped")
 
 ## Examples
 
-### Basic Example
+### Setup
 
 ``` r
 library(deduped)
 set.seed(0)
 
-slow_func <- function(ii) {
-  for (i in ii) {
-    Sys.sleep(0.001)
+slow_tolower <- function(x) {
+  for (i in x) {
+    Sys.sleep(0.0005)
   }
+  tolower(x)
 }
+```
 
-# deduped()
-unique_vec <- sample(LETTERS, 10)
-unique_vec
-#>  [1] "N" "Y" "D" "G" "A" "B" "K" "Z" "R" "V"
+### `deduped()`
 
-duplicated_vec <- sample(rep(unique_vec, 100))
+``` r
+
+# Create a vector with significant duplication.
+unique_vec <- sample(LETTERS, 5)
+duplicated_vec <- sample(rep(unique_vec, 50))
 length(duplicated_vec)
-#> [1] 1000
+#> [1] 250
 
-system.time({
-  x1 <- deduped(slow_func)(duplicated_vec)
-})
+system.time({  x1 <- slow_tolower(duplicated_vec)  })
 #>    user  system elapsed 
-#>   0.097   0.015   0.134
-system.time({
-  x2 <- slow_func(duplicated_vec)
-})
+#>    0.00    0.00    3.88
+
+
+system.time({  x2 <- deduped(slow_tolower)(duplicated_vec)  })
 #>    user  system elapsed 
-#>   0.032   0.013   1.197
+#>    0.10    0.00    0.24
 all.equal(x1, x2)
-#> [1] TRUE
-
-
-# deduped() can be combined with lapply() or purrr::map().
-unique_list <- lapply(1:5, function(j) sample(LETTERS, j, replace = TRUE))
-str(unique_list)
-#> List of 5
-#>  $ : chr "M"
-#>  $ : chr [1:2] "P" "Y"
-#>  $ : chr [1:3] "D" "E" "L"
-#>  $ : chr [1:4] "B" "I" "J" "N"
-#>  $ : chr [1:5] "W" "T" "F" "E" ...
-
-# Create a list with significant duplication.
-duplicated_list <- sample(rep(unique_list, 100)) 
-length(duplicated_list)
-#> [1] 500
-
-system.time({
-  y1 <- deduped(lapply)(duplicated_list, slow_func)
-})
-#>    user  system elapsed 
-#>   0.001   0.000   0.018
-system.time({
-  y2 <- lapply(duplicated_list, slow_func)
-})
-#>    user  system elapsed 
-#>   0.025   0.016   1.756
-
-all.equal(y1, y2)
 #> [1] TRUE
 ```
 
-### `file_path` Example
+*Note: As of version 0.3.0, you could also use*
+`slow_tolower(duplicated_vec) |> with_deduped()`.
+
+### `deduped(lapply)()`
+
+`deduped()` can also be combined with `lapply()` or `purrr::map()`.
 
 ``` r
-# Create multiple CSVs to read
-tf <- tempfile()
-dir.create(tf)
 
-# Duplicate mtcars 10,000x and write 1 CSV for each value of `am`
-duplicated_mtcars <- dplyr::slice(mtcars, rep(1:nrow(mtcars), 10000))
-invisible(sapply(
-  dplyr::group_split(duplicated_mtcars, am),
-  function(k) {
-    file_name <- paste0("mtcars_", unique(k$am), ".csv")
-    readr::write_csv(k, file.path(tf, file_name))
-  }
-))
+unique_list <- lapply(1:3, function(j) sample(LETTERS, j, replace = TRUE))
+str(unique_list)
+#> List of 3
+#>  $ : chr "E"
+#>  $ : chr [1:2] "L" "O"
+#>  $ : chr [1:3] "N" "O" "Q"
 
-duplicated_mtcars_from_files <- readr::read_csv(
-  list.files(tf, full.names = TRUE),
-  id = "file_path",
-  show_col_types = FALSE
-)
-dplyr::count(duplicated_mtcars_from_files, basename(file_path))
-#> # A tibble: 2 × 2
-#>   `basename(file_path)`      n
-#>   <chr>                  <int>
-#> 1 mtcars_0.csv          190000
-#> 2 mtcars_1.csv          130000
+# Create a list with significant duplication.
+duplicated_list <- sample(rep(unique_list, 50)) 
+length(duplicated_list)
+#> [1] 150
 
-system.time({
-  df1 <- dplyr::mutate(
-    duplicated_mtcars_from_files,
-    file_name = basename(file_path)
-  )
-})
+system.time({  y1 <- lapply(duplicated_list, slow_tolower)  })
 #>    user  system elapsed 
-#>   0.104   0.000   0.104
-system.time({
-  df2 <- dplyr::mutate(
-    duplicated_mtcars_from_files,
-    file_name = deduped(basename)(file_path)
-  )
-})
+#>    0.03    0.00    4.68
+system.time({  y2 <- deduped(lapply)(duplicated_list, slow_tolower)  })
 #>    user  system elapsed 
-#>   0.010   0.002   0.013
+#>    0.00    0.00    0.09
 
-all.equal(df1, df2)
+all.equal(y1, y2)
 #> [1] TRUE
-
-unlink(tf)
 ```

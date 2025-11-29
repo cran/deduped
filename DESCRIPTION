@@ -1,7 +1,7 @@
 Package: deduped
 Type: Package
 Title: Making "Deduplicated" Functions
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: 
     person("Or", "Gadish", email = "orgadish@gmail.com", role = c("aut", "cre", "cph"))
 Description: Contains one main function deduped() which speeds up slow,
@@ -10,14 +10,14 @@ Description: Contains one main function deduped() which speeds up slow,
 License: MIT + file LICENSE
 Encoding: UTF-8
 Imports: collapse, fastmatch,
-RoxygenNote: 7.2.3
-Suggests: dplyr, purrr, readr, testthat (>= 3.0.0), withr
+RoxygenNote: 7.3.3
+Suggests: purrr, testthat (>= 3.0.0), withr
 Config/testthat/edition: 3
 URL: https://github.com/orgadish/deduped
 BugReports: https://github.com/orgadish/deduped/issues
 NeedsCompilation: no
-Packaged: 2023-11-07 04:05:47 UTC; orgadish
+Packaged: 2025-11-29 07:13:41 UTC; Or.Gadish
 Author: Or Gadish [aut, cre, cph]
 Maintainer: Or Gadish <orgadish@gmail.com>
 Repository: CRAN
-Date/Publication: 2023-11-07 10:10:13 UTC
+Date/Publication: 2025-11-29 07:30:02 UTC
